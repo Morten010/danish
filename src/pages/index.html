@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Compressly</title>
+    <link rel="icon" type="image/x-icon" href="../public/compressly-logo.svg">
+    <link rel="stylesheet" href="../public/main.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+</head>
+
+<body>
+    <Navbar class="navbar">
+        <h1>Compressly</h1>
+        <div class="toggle-container" onclick="toggleButton(this)">
+            <div class="toggle-circle"></div>
+        </div>
+    </Navbar>
+    <div class="wrapper">
+        <h1>Effortlessly <span class="blue-text">compress</span> your images <br> with just a click</h1>
+        <form id="uploadForm" enctype="multipart/form-data">
+            <div class="drop-zone" id="uploadArea">
+                <div class="upload-icon"><i class="fa-solid fa-cloud-arrow-up"></i></div>
+                <div class="upload-text">Drag & drop images here or click to browse</div>
+                <input type="file" class="file-input" id="fileInput" name="image" accept="image/*" required>
+                <div class="preview-container" id="previewContainer"></div>
+                <div class="error-message" id="errorMessage"></div>
+            </div>
+
+            <div class="parameters">
+                <div class="compression">
+                    <label>Compression Level</label>
+                    <div class="comp-val">
+                        <input type="range" name="compressionLevel" min="1" max="100" value="50" id="compressionSlider"
+                            required>
+                        <span id="compressionValue">50</span><br><br>
+                    </div>
+                </div>
+
+                <label>Format</label>
+                <select name="format" required>
+                    <option value="jpeg">JPEG</option>
+                    <option value="png">PNG</option>
+                    <option value="webp">WebP</option>
+                </select><br><br>
+
+                <div class="optional">
+                  <label>Width</label>
+                  <input type="number" name="width" class="size" min="100" max="1280"><br><br>
+  
+                  <label>Height</label>
+                  <input type="number" name="height" class="size" min="100" max="760"><br><br>
+                  <p>Optional</p>
+                </div>
+                <button type="submit">Compress</button>
+            </div>
+        </form>
+
+        <p id="result"></p>
+    </div>
+    <script src="./theme-switcher.js"></script>
+    <script>
+        const uploadArea = document.getElementById('uploadArea');
+        const fileInput = document.getElementById('fileInput');
+        const errorMessage = document.getElementById('errorMessage');
+        const previewContainer = document.getElementById('previewContainer');
+        const compressionSlider = document.getElementById('compressionSlider');
+        const compressionValue = document.getElementById('compressionValue');
+
+        // Update the displayed value when the slider changes
+        compressionSlider.oninput = () => {
+            compressionValue.innerText = compressionSlider.value;
+        };
+
+        // Handle drag & drop events
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            uploadArea.addEventListener(eventName, preventDefaults);
+        });
+
+        function preventDefaults(e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+
+        ['dragenter', 'dragover'].forEach(eventName => {
+            uploadArea.addEventListener(eventName, () => {
+                uploadArea.classList.add('dragover');
+            });
+        });
+
+        ['dragleave', 'drop'].forEach(eventName => {
+            uploadArea.addEventListener(eventName, () => {
+                uploadArea.classList.remove('dragover');
+            });
+        });
+
+        // Handle file drop
+        uploadArea.addEventListener('drop', handleDrop);
+        uploadArea.addEventListener('click', () => fileInput.click());
+        fileInput.addEventListener('change', handleFileSelect);
+
+        function handleDrop(e) {
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                fileInput.files = files; // Update the input's files
+                handleFiles(files);
+            }
+        }
+
+        function handleFileSelect(e) {
+            const files = e.target.files;
+            handleFiles(files);
+        }
+
+        function handleFiles(files) {
+            errorMessage.style.display = 'none';
+            previewContainer.innerHTML = ''; // Clear previous previews
+
+            if (files.length > 1) {
+                errorMessage.textContent = 'Please select only one image.';
+                errorMessage.style.display = 'block';
+                fileInput.value = '';
+                return;
+            }
+
+            const file = files[0];
+            if (!file.type.startsWith('image/')) {
+                errorMessage.textContent = 'Please upload only image files.';
+                errorMessage.style.display = 'block';
+                fileInput.value = '';
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = function (e) {
+                const img = document.createElement('img');
+                img.src = e.target.result;
+                img.classList.add('preview-image');
+                previewContainer.appendChild(img);
+            }
+            reader.readAsDataURL(file);
+        }
+
+        const form = document.getElementById('uploadForm');
+        form.onsubmit = async (e) => {
+            e.preventDefault();
+            const formData = new FormData(form);
+
+            // Convert the range slider value to a number and append to formData
+            formData.set('compressionLevel', Number(compressionSlider.value));
+
+            const response = await fetch('/compress', {
+                method: 'POST',
+                body: formData
+            });
+            const result = await response.json();
+
+            document.getElementById('result').innerHTML =
+                `<a href="${result.downloadLink}" download>Download Compressed Image</a>`;
+        };
+    </script>
+</body>
+
+</html>
